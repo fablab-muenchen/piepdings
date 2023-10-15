@@ -1,160 +1,168 @@
-#include <avr/power.h>
-#include <avr/sleep.h>
+#define __DELAY_BACKWARD_COMPATIBLE__ 
 
-#define LED1  9 //PB0
-#define LED2 11 //PB2
-#define LED3 14 //PB5
-#define LED4 16 //PB7
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
 
-#define BUTTON1 10 //PB1
-#define BUTTON2 12 //PB3
-#define BUTTON3 13 //PB4
-#define BUTTON4 15 //PB6
 
-#define BUZZER1 6
-#define BUZZER2 7
+// ATMEL ATTINY2313
+//
+//                   +-\/-+
+//      (D 17) PA2  1|    |20  VCC
+// RX   (D  0) PD0  2|    |19  PB7 (D  16)
+// TX   (D  1) PD1  3|    |18  PB6 (D  15)
+//      (D  2) PA1  4|    |17  PB5 (D  14)
+//      (D  3) PA0  5|    |16  PB4 (D  13)
+// INT0 (D  4) PD2  6|    |15  PB3 (D  12)
+// INT1 (D  5) PD3  7|    |14  PB2 (D  11)
+//      (D  6) PD4  8|    |13  PB1 (D  10)
+//      (D  7) PD5  9|    |12  PB0 (D  9)
+//             GND 10|    |11  PD6 (D  8)
+//                   +----+
+//
+
+#define PORT_LED PORTB // if changed, change setup() too!
+#define LED1    PB0
+#define LED2    PB2
+#define LED3    PB5
+#define LED4    PB7
+
+#define PORT_BUTTON PINB  // if changed, change setup() too!
+#define BUTTON1 PB1
+#define BUTTON2 PB3
+#define BUTTON3 PB4
+#define BUTTON4 PB6
+
+#define PORT_BUZZER PORTD  // if changed, change setup() too!
+#define PORT_PIN_BUZZER PIND
+#define BUZZER1_PIN PD4
+#define BUZZER2_PIN PD5
+
+#define PORT_IO PIND  // if changed, change setup() too!
+#define I0_PIN 4
 
 #define TONE1 880
 #define TONE2 1760
 #define TONE3 2000
 #define TONE4 3000
 
-#define I0_PIN 4
 
 #define ENTRY_TIME_LIMIT 3000
 
 bool soundEnabled = true;
 
+//////////////////////////////////////////////////////
+// Helper functions
+
+#define HIGH 0x1
+#define LOW  0x0
+
+void setOutputPin(volatile uint8_t* port, uint8_t pin, uint8_t val) {
+    if (val) {
+        *port |= (1 << pin);  // Set the pin high
+    } 
+    else {
+        *port &= ~(1 << pin); // Set the pin low
+    }
+}
+
+void digitalWriteLed(uint8_t pin, uint8_t val) {
+    setOutputPin(&PORT_LED, pin, val);
+}
+
+uint8_t getInputPin(volatile uint8_t* port, uint8_t pin) {
+    // Return pin state
+    return (*port & (1 << pin)) ? 1 : 0;
+}
+
+uint8_t digitalReadButton(uint8_t pin) {
+    return getInputPin(&PORT_BUTTON, pin);
+}
+
+ISR(TIMER1_COMPA_vect) {
+    // Toggle buzzer pins
+    PORT_PIN_BUZZER |= (1 << BUZZER1_PIN) | (1 << BUZZER2_PIN);
+}
+
+void tone(uint16_t frequency) {
+    // Calculate the toggle count based on the desired frequency
+    // and clock prescaler of 8 (CS11)
+    uint16_t toggle_count = (F_CPU / 8) / frequency - 1;
+
+    // Set up Timer1 in CTC mode
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
+    TCCR1B |= (1 << WGM12) | (1 << CS11);
+    OCR1A = toggle_count;
+    TIMSK |= (1 << OCIE1A); // enable timer compare interrupt
+}
+
+void noTone() {
+    // Disable the Timer1 output
+    TCCR1A &= ~(1 << COM1B0);
+    TCCR1B &= ~((1 << WGM12) | (1 << CS11));
+}
+
+void setupTimer0() {
+    // Set Timer0 to fast PWM mode
+    TCCR0A |= (1 << WGM01) | (1 << WGM00);
+    // Set prescaler to 8
+    TCCR0B |= (1 << CS01);
+}
+
+uint8_t getRandom(void) {
+    // Use the two least significant bits of TCNT0 as a semi-random number between 0 and 3
+    return TCNT0 & 0x03;
+}
+
+
+///////////////////////////
+
+
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(BUZZER1, OUTPUT);
-  pinMode(BUZZER2, OUTPUT);
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
-  pinMode(LED4, OUTPUT);
-  pinMode(BUTTON1, INPUT_PULLUP);
-  pinMode(BUTTON2, INPUT_PULLUP);
-  pinMode(BUTTON3, INPUT_PULLUP);
-  pinMode(BUTTON4, INPUT_PULLUP);
-  pinMode(I0_PIN, INPUT);
-
-  if (digitalRead(BUTTON1) == LOW) {
-    soundEnabled = false;
-  }
-}
-
-void loop() {
-  //go to sleep
-  sleep_enable(); // set safety pin to allow cpu sleep
-  attachInterrupt(0, intrpt, LOW); // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // set sleep mode to have most power savings
-  cli(); // disable interrupts during timed sequence
-  sei(); // set Global Interrupt Enable
-  sleep_cpu(); // power down cpu
-  
-  //wake up here
-  sleep_disable(); // set safety pin to NOT allow cpu sleep
-  detachInterrupt(0); // detach interrupt to allow other usage of this pin
-
-  //play game
-  play_all_tones();
-  
-  int difficulty = 6;
-  while (one_round(difficulty)) {
-
-    //TODO Show difficulty here
+    // Configure pins for output 
+    DDRB |= (1 << LED1) | (1 << LED2) | (1 << LED3) | (1 << LED4);
+    DDRD |= (1 << BUZZER1_PIN) | (1 << BUZZER2_PIN);
+    // and input
+    DDRB &= ~((1 << BUTTON1) | (1 << BUTTON2) | (1 << BUTTON3) | (1 << BUTTON4));
+    DDRD &= ~(1 << I0_PIN);
     
-    difficulty++;
+    // Enable pull-ups for button pins 
+    PORTB |= (1 << BUTTON1) | (1 << BUTTON2) | (1 << BUTTON3) | (1 << BUTTON4);
+    
+    setOutputPin(&PORT_BUZZER, BUZZER1_PIN, LOW);
+    setOutputPin(&PORT_BUZZER, BUZZER2_PIN, HIGH);
 
-    //C5 E5 G5 C6
-    digitalWrite(LED2, HIGH);
-    play_tone(10, 200);
-    play_tone(11, 200);
-    play_tone(12, 200);
-    play_tone(13, 200);
-    digitalWrite(LED2, LOW);
-  }
-
-  //C6 G5 C5
-  digitalWrite(LED1, HIGH);
-  play_tone(13, 200);
-  play_tone(12, 200);
-  play_tone(10, 400);
-  digitalWrite(LED1, LOW);
+    // Check if BUTTON1 is low (button pressed), and if so, disable sound
+    //if (!(PINB & (1 << BUTTON1))) {
+    //    soundEnabled = false;
+    //}
 }
+
+
+
 
 void intrpt() {
   //do nothing here, just wake up
 }
 
-bool one_round(int difficulty) {
-  difficulty = difficulty / 2;
-  
-  digitalWrite(LED1, HIGH);
-  digitalWrite(LED2, HIGH);
-  digitalWrite(LED3, HIGH);
-  digitalWrite(LED4, HIGH);
-  delay(500);
-  digitalWrite(LED1, LOW);
-  digitalWrite(LED2, LOW);
-  digitalWrite(LED3, LOW);
-  digitalWrite(LED4, LOW);
-  delay(500);
-  
-  int rnd[difficulty];
 
-  //play tone sequence
-  for (int i = 0; i < difficulty; i++) {
-    rnd[i] = random(1, 5);
-
-    digitalWrite(nr_to_led_pin(rnd[i]), HIGH);
-    play_tone(rnd[i], 400);
-    digitalWrite(nr_to_led_pin(rnd[i]), LOW);
-    delay(100);
+int nr_to_led_pin(int nr) {
+  switch(nr) {
+    case 1:
+      return LED1;
+    case 2:
+      return LED2;
+    case 3:
+      return LED3;
+    case 4:
+      return LED4;
+    default:
+      return -1;
   }
-
-  //wait for correct user input
-  for (int i = 0; i < difficulty; i++) {
-    int input_nr = wait_for_button();
-    if (input_nr != rnd[i]) {
-      return false;
-    }
-  }
-  return true;
 }
 
-// plays all tones in a row and lights the corresponding LED
-void play_all_tones() {
-  digitalWrite(LED1, HIGH);
-  play_tone(1, 400);
-  digitalWrite(LED1, LOW);
-  delay(100);
-
-  digitalWrite(LED2, HIGH);
-  play_tone(2, 400);
-  digitalWrite(LED2, LOW);
-  delay(100);
-
-  digitalWrite(LED3, HIGH);
-  play_tone(3, 400);
-  digitalWrite(LED3, LOW);
-  delay(100);
-
-  digitalWrite(LED4, HIGH);
-  play_tone(4, 400);
-  digitalWrite(LED4, LOW);
-  delay(100);
-}
-
-void play_tone(int tone_nr, int length_ms) {
-  int tone_hz = tone_nr_to_hz(tone_nr);
-  if (soundEnabled) {
-    tone(BUZZER1, tone_hz);
-  }
-  delay(length_ms);
-  noTone(BUZZER1);
-}
 
 int tone_nr_to_hz(int nr) {
   switch(nr) {
@@ -181,49 +189,160 @@ int tone_nr_to_hz(int nr) {
   }
 }
 
-int wait_for_button() {
-  long start_time = millis();
-
-  //wait a max of ENTRY_TIME_LIMIT for a button press
-  while ((millis() - start_time) < ENTRY_TIME_LIMIT) {
-    int button_nr = check_button();
-
-    if (button_nr != -1) {//if a button is pressed
-      digitalWrite(nr_to_led_pin(button_nr), HIGH);
-      play_tone(button_nr, 150);
-      digitalWrite(nr_to_led_pin(button_nr), LOW);
-
-      while (check_button() != -1) {//wait for button release
-        //do nothing
-      }
-      delay(10);//software debounce
-
-      return button_nr;
-    }
+void play_tone(int tone_nr, int length_ms) {
+  int tone_hz = tone_nr_to_hz(tone_nr);
+  if (soundEnabled) {
+    tone(tone_hz);
   }
+  _delay_ms(length_ms);
+  noTone();
 }
 
+// plays all tones in a row and lights the corresponding LED
+void play_all_tones() {
+  digitalWriteLed(LED1, HIGH);
+  play_tone(1, 400);
+  digitalWriteLed(LED1, LOW);
+  _delay_ms(100);
+
+  digitalWriteLed(LED2, HIGH);
+  play_tone(2, 400);
+  digitalWriteLed(LED2, LOW);
+  _delay_ms(100);
+
+  digitalWriteLed(LED3, HIGH);
+  play_tone(3, 400);
+  digitalWriteLed(LED3, LOW);
+  _delay_ms(100);
+
+  digitalWriteLed(LED4, HIGH);
+  play_tone(4, 400);
+  digitalWriteLed(LED4, LOW);
+  _delay_ms(100);
+}
+
+
+
+
+
 int check_button() {
-  if (digitalRead(BUTTON1) == 0) return 1; 
-  else if (digitalRead(BUTTON2) == 0) return 2; 
-  else if (digitalRead(BUTTON3) == 0) return 3; 
-  else if (digitalRead(BUTTON4) == 0) return 4;
+  if (digitalReadButton(BUTTON1) == 0) return 1; 
+  else if (digitalReadButton(BUTTON2) == 0) return 2; 
+  else if (digitalReadButton(BUTTON3) == 0) return 3; 
+  else if (digitalReadButton(BUTTON4) == 0) return 4;
 
   return -1; // If no button is pressed, return -1
 }
 
-int nr_to_led_pin(int nr) {
-  switch(nr) {
-    case 1:
-      return LED1;
-    case 2:
-      return LED2;
-    case 3:
-      return LED3;
-    case 4:
-      return LED4;
-    default:
-      return -1;
+
+int wait_for_button() {
+  uint16_t millis = 0;
+  const uint16_t delay_ms = 5;
+
+  //wait a max of ENTRY_TIME_LIMIT for a button press
+  while (millis < ENTRY_TIME_LIMIT) {
+    int button_nr = check_button();
+    if (button_nr != -1) {//if a button is pressed
+        digitalWriteLed(nr_to_led_pin(button_nr), HIGH);
+        play_tone(button_nr, 150);
+        digitalWriteLed(nr_to_led_pin(button_nr), LOW);
+
+        while (check_button() != -1) {//wait for button release
+          //do nothing
+        }
+        _delay_ms(10);//software debounce
+
+        return button_nr;
+    }
+    _delay_ms(delay_ms);
+    millis += delay_ms;
   }
+  return 0;
 }
 
+
+
+bool one_round(int difficulty) {
+  difficulty = difficulty / 2;
+  
+  digitalWriteLed(LED1, HIGH);
+  digitalWriteLed(LED2, HIGH);
+  digitalWriteLed(LED3, HIGH);
+  digitalWriteLed(LED4, HIGH);
+  _delay_ms(500);
+  digitalWriteLed(LED1, LOW);
+  digitalWriteLed(LED2, LOW);
+  digitalWriteLed(LED3, LOW);
+  digitalWriteLed(LED4, LOW);
+  _delay_ms(500);
+  
+  int rnd[difficulty];
+
+  //play tone sequence
+  for (int i = 0; i < difficulty; i++) {
+    rnd[i] = 1 + getRandom();
+
+    digitalWriteLed(nr_to_led_pin(rnd[i]), HIGH);
+    play_tone(rnd[i], 400);
+    digitalWriteLed(nr_to_led_pin(rnd[i]), LOW);
+    _delay_ms(100);
+  }
+
+  //wait for correct user input
+  for (int i = 0; i < difficulty; i++) {
+    int input_nr = wait_for_button();
+    if (input_nr != rnd[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void loop() {
+  //go to sleep
+  ///sleep_enable(); // set safety pin to allow cpu sleep
+  ///attachInterrupt(0, intrpt, LOW); // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
+  ///set_sleep_mode(SLEEP_MODE_PWR_DOWN); // set sleep mode to have most power savings
+  ///cli(); // disable interrupts during timed sequence
+  sei(); // set Global Interrupt Enable
+  ///sleep_cpu(); // power down cpu
+  
+  //wake up here
+  ///sleep_disable(); // set safety pin to NOT allow cpu sleep
+  ///detachInterrupt(0); // detach interrupt to allow other usage of this pin
+
+  setupTimer0();
+
+  //play game
+  play_all_tones();
+  
+  int difficulty = 6;
+  while (one_round(difficulty)) {
+
+    //TODO Show difficulty here
+    
+    difficulty++;
+
+    //C5 E5 G5 C6
+    digitalWriteLed(LED2, HIGH);
+    play_tone(10, 200);
+    play_tone(11, 200);
+    play_tone(12, 200);
+    play_tone(13, 200);
+    digitalWriteLed(LED2, LOW);
+  }
+
+  //C6 G5 C5
+  digitalWriteLed(LED1, HIGH);
+  play_tone(13, 200);
+  play_tone(12, 200);
+  play_tone(10, 400);
+  digitalWriteLed(LED1, LOW);
+}
+
+int main()
+{
+    setup();
+    while (1)
+        loop();
+}
