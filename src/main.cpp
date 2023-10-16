@@ -90,30 +90,68 @@ void tone(uint16_t frequency) {
     uint16_t toggle_count = (F_CPU / 8) / frequency - 1;
 
     // Set up Timer1 in CTC mode
-    TCCR1A = 0;
-    TCCR1B = 0;
     TCNT1 = 0;
-    TCCR1B |= (1 << WGM12) | (1 << CS11);
+    TCCR1A = 0;
+    TCCR1B = (1 << WGM12) | (1 << CS11);
     OCR1A = toggle_count;
     TIMSK |= (1 << OCIE1A); // enable timer compare interrupt
 }
 
 void noTone() {
     // Disable the Timer1 output
-    TCCR1A &= ~(1 << COM1B0);
-    TCCR1B &= ~((1 << WGM12) | (1 << CS11));
+    TCCR1A = 0;
+    TCCR1B = 0;
 }
 
 void setupTimer0() {
-    // Set Timer0 to fast PWM mode
-    TCCR0A |= (1 << WGM01) | (1 << WGM00);
-    // Set prescaler to 8
-    TCCR0B |= (1 << CS01);
+    // Set Timer0 to normal mode
+    TCCR0A = 0;
+    // Enable Timer0 overflow interrupt
+    TIMSK |= (1 << TOIE0);
+    // Set prescaler to 1:1 mode
+    TCCR0B = (1 << CS00);
 }
 
+volatile static uint8_t overflowCounter = 0;
+
+// ISR for Timer0 Overflow
+ISR(TIMER0_OVF_vect) {
+    overflowCounter++;  // Increment the overflow counter every time Timer0 overflows
+}
+
+static uint8_t counterLO = 0xAB;
+static uint8_t counterHI = 0x89;
+static uint8_t bitLO = 0;
+static uint8_t bitHI = 0;
+static uint8_t sequenceNumber = 0;
+
+void initRandomFromClock() {
+    counterLO = TCNT0 ^ 0xAB;
+    counterHI = overflowCounter ^ 0x89;
+    bitLO = 0;
+    bitHI = 0;
+    sequenceNumber = 0;
+}
+
+// get a 2-bit random number (0-3)
 uint8_t getRandom(void) {
-    // Use the two least significant bits of TCNT0 as a semi-random number between 0 and 3
-    return TCNT0 & 0x03;
+    // get one bit from counterLO and one from counterHI to form a 2-bit number
+    uint8_t random = ((counterLO & (1 << bitLO)) ? 1 : 0) | 
+                     ((counterHI & (1 << bitHI)) ? 2 : 0);
+    // move to next bit position for next random number
+    bitLO++;
+    bitHI++;
+    if (++sequenceNumber >= 8) {
+        // after 8 runs, there are no more unused bits
+        // in case really needed, resort to combining the bits differently  
+        bitLO += 2;
+        bitHI += 5;
+        sequenceNumber = 0;
+    }
+    bitLO &= 0b0111; // modulo 8
+    bitHI &= 0b0111; // modulo 8
+
+    return random;
 }
 
 
@@ -250,6 +288,7 @@ int wait_for_button() {
         while (check_button() != -1) {//wait for button release
           //do nothing
         }
+        initRandomFromClock(); // use this moment to save clock for ramdom numbers
         _delay_ms(10);//software debounce
 
         return button_nr;
@@ -339,6 +378,7 @@ void loop() {
   play_tone(10, 400);
   digitalWriteLed(LED1, LOW);
 }
+
 
 int main()
 {
