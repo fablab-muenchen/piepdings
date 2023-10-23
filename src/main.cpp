@@ -2,7 +2,8 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/delay.h>
+#include <avr/sleep.h>
+#include <util/delay_basic.h>
 
 
 // ATMEL ATTINY2313
@@ -19,7 +20,7 @@
 //      (D  7) PD5  9|    |12  PB0 (D  9)
 //             GND 10|    |11  PD6 (D  8)
 //                   +----+
-//
+// PCINT11=PD0
 
 #define PORT_LED PORTB // if changed, change setup() too!
 #define LED1    PB0
@@ -47,7 +48,8 @@
 #define TONE4 3000
 
 
-#define ENTRY_TIME_LIMIT 3000
+#define ENTRY_TIME_LIMIT_MS 3000
+const uint16_t ENTRY_TIME_LIMIT_10MS = ENTRY_TIME_LIMIT_MS/10;
 
 bool soundEnabled = true;
 
@@ -77,6 +79,13 @@ uint8_t getInputPin(volatile uint8_t* port, uint8_t pin) {
 
 uint8_t digitalReadButton(uint8_t pin) {
     return getInputPin(&PORT_BUTTON, pin);
+}
+
+const uint16_t count10ms = (F_CPU / 8) / 4 / 100;
+
+// delay factor * 10ms, 
+inline void delay10ms(uint8_t factor) {
+  _delay_loop_2(count10ms * factor);
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -172,37 +181,16 @@ void setup() {
     setOutputPin(&PORT_BUZZER, BUZZER1_PIN, LOW);
     setOutputPin(&PORT_BUZZER, BUZZER2_PIN, HIGH);
 
-    // Check if BUTTON1 is low (button pressed), and if so, disable sound
-    //if (!(PINB & (1 << BUTTON1))) {
-    //    soundEnabled = false;
-    //}
+    // Check if BUTTON1 is pressed, and if so, disable sound
+    if (digitalReadButton(BUTTON1) == 0) {
+        soundEnabled = false;
+    }
 }
 
+const uint8_t nr_to_led_pin[] = {0, LED1, LED2, LED3, LED4};
 
 
-
-void intrpt() {
-  //do nothing here, just wake up
-}
-
-
-int nr_to_led_pin(int nr) {
-  switch(nr) {
-    case 1:
-      return LED1;
-    case 2:
-      return LED2;
-    case 3:
-      return LED3;
-    case 4:
-      return LED4;
-    default:
-      return -1;
-  }
-}
-
-
-int tone_nr_to_hz(int nr) {
+int tone_nr_to_hz(uint8_t nr) {
   switch(nr) {
     case 1:
       return TONE1;
@@ -227,43 +215,46 @@ int tone_nr_to_hz(int nr) {
   }
 }
 
-void play_tone(int tone_nr, int length_ms) {
+
+ 
+void play_tone(uint8_t tone_nr, uint8_t times10ms) {
   int tone_hz = tone_nr_to_hz(tone_nr);
   if (soundEnabled) {
     tone(tone_hz);
   }
-  _delay_ms(length_ms);
+  
+  delay10ms(times10ms);
   noTone();
 }
 
 // plays all tones in a row and lights the corresponding LED
 void play_all_tones() {
   digitalWriteLed(LED1, HIGH);
-  play_tone(1, 400);
+  play_tone(1, 40);
   digitalWriteLed(LED1, LOW);
-  _delay_ms(100);
+  delay10ms(10);
 
   digitalWriteLed(LED2, HIGH);
-  play_tone(2, 400);
+  play_tone(2, 40);
   digitalWriteLed(LED2, LOW);
-  _delay_ms(100);
+  delay10ms(10);
 
   digitalWriteLed(LED3, HIGH);
-  play_tone(3, 400);
+  play_tone(3, 40);
   digitalWriteLed(LED3, LOW);
-  _delay_ms(100);
+  delay10ms(10);
 
   digitalWriteLed(LED4, HIGH);
-  play_tone(4, 400);
+  play_tone(4, 40);
   digitalWriteLed(LED4, LOW);
-  _delay_ms(100);
+  delay10ms(10);
 }
 
 
 
 
 
-int check_button() {
+int8_t check_button() {
   if (digitalReadButton(BUTTON1) == 0) return 1; 
   else if (digitalReadButton(BUTTON2) == 0) return 2; 
   else if (digitalReadButton(BUTTON3) == 0) return 3; 
@@ -273,63 +264,63 @@ int check_button() {
 }
 
 
-int wait_for_button() {
-  uint16_t millis = 0;
-  const uint16_t delay_ms = 5;
+uint8_t wait_for_button() {
+  uint16_t time10ms = 0;
+  const uint8_t delay_10ms = 1;
 
   //wait a max of ENTRY_TIME_LIMIT for a button press
-  while (millis < ENTRY_TIME_LIMIT) {
-    int button_nr = check_button();
+  while (time10ms < ENTRY_TIME_LIMIT_10MS) {
+    uint8_t button_nr = check_button();
     if (button_nr != -1) {//if a button is pressed
-        digitalWriteLed(nr_to_led_pin(button_nr), HIGH);
-        play_tone(button_nr, 150);
-        digitalWriteLed(nr_to_led_pin(button_nr), LOW);
+        digitalWriteLed(nr_to_led_pin[button_nr], HIGH);
+        play_tone(button_nr, 15);
+        digitalWriteLed(nr_to_led_pin[button_nr], LOW);
 
         while (check_button() != -1) {//wait for button release
           //do nothing
         }
         initRandomFromClock(); // use this moment to save clock for ramdom numbers
-        _delay_ms(10);//software debounce
+        delay10ms(1);//software debounce
 
         return button_nr;
     }
-    _delay_ms(delay_ms);
-    millis += delay_ms;
+    delay10ms(delay_10ms);
+    time10ms += delay_10ms;
   }
   return 0;
 }
 
 
 
-bool one_round(int difficulty) {
+bool one_round(uint8_t difficulty) {
   difficulty = difficulty / 2;
   
   digitalWriteLed(LED1, HIGH);
   digitalWriteLed(LED2, HIGH);
   digitalWriteLed(LED3, HIGH);
   digitalWriteLed(LED4, HIGH);
-  _delay_ms(500);
+  delay10ms(50);
   digitalWriteLed(LED1, LOW);
   digitalWriteLed(LED2, LOW);
   digitalWriteLed(LED3, LOW);
   digitalWriteLed(LED4, LOW);
-  _delay_ms(500);
+  delay10ms(50);
   
-  int rnd[difficulty];
+  uint8_t rnd[difficulty];
 
   //play tone sequence
-  for (int i = 0; i < difficulty; i++) {
+  for (uint8_t i = 0; i < difficulty; i++) {
     rnd[i] = 1 + getRandom();
 
-    digitalWriteLed(nr_to_led_pin(rnd[i]), HIGH);
-    play_tone(rnd[i], 400);
-    digitalWriteLed(nr_to_led_pin(rnd[i]), LOW);
-    _delay_ms(100);
+    digitalWriteLed(nr_to_led_pin[rnd[i]], HIGH);
+    play_tone(rnd[i], 40);
+    digitalWriteLed(nr_to_led_pin[rnd[i]], LOW);
+    delay10ms(10);
   }
 
   //wait for correct user input
-  for (int i = 0; i < difficulty; i++) {
-    int input_nr = wait_for_button();
+  for (uint8_t i = 0; i < difficulty; i++) {
+    uint8_t input_nr = wait_for_button();
     if (input_nr != rnd[i]) {
       return false;
     }
@@ -355,7 +346,7 @@ void loop() {
   //play game
   play_all_tones();
   
-  int difficulty = 6;
+  uint8_t difficulty = 6;
   while (one_round(difficulty)) {
 
     //TODO Show difficulty here
@@ -364,18 +355,18 @@ void loop() {
 
     //C5 E5 G5 C6
     digitalWriteLed(LED2, HIGH);
-    play_tone(10, 200);
-    play_tone(11, 200);
-    play_tone(12, 200);
-    play_tone(13, 200);
+    play_tone(10, 20);
+    play_tone(11, 20);
+    play_tone(12, 20);
+    play_tone(13, 20);
     digitalWriteLed(LED2, LOW);
   }
 
   //C6 G5 C5
   digitalWriteLed(LED1, HIGH);
-  play_tone(13, 200);
-  play_tone(12, 200);
-  play_tone(10, 400);
+  play_tone(13, 20);
+  play_tone(12, 20);
+  play_tone(10, 40);
   digitalWriteLed(LED1, LOW);
 }
 
