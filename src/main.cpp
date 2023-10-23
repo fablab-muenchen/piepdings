@@ -328,6 +328,24 @@ bool one_round(uint8_t difficulty) {
   return true;
 }
 
+/*
+ISR (PCINT2_vect) {
+  // this is the Interrupt Service Routine
+  //do nothing here, just wake up
+}
+
+void attachInterrupt() {
+  // interrupts
+  PCMSK2 |= (1 << PCINT11); // want pin PCINT11 = PD0 = pin2
+  GIFR   |= (1 << PCIF2);   // clear any outstanding interrupts
+  GIMSK  |= (1 << PCIE2);   // enable pin change interrupts 
+}
+
+void detachInterrupt() {
+  GIMSK &= ~(1 << PCIE2);
+}
+*/
+
 void loop() {
   //go to sleep
   ///sleep_enable(); // set safety pin to allow cpu sleep
