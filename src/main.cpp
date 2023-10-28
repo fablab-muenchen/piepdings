@@ -81,11 +81,12 @@ uint8_t digitalReadButton(uint8_t pin) {
     return getInputPin(&PORT_BUTTON, pin);
 }
 
-const uint16_t count10ms = (F_CPU / 8) / 4 / 100;
+const uint16_t count10ms = F_CPU / 4 / 100; // each _delay_loop_2 loop takes 4 CPU cycles
 
 // delay factor * 10ms, 
 inline void delay10ms(uint8_t factor) {
-  _delay_loop_2(count10ms * factor);
+  for (uint8_t i=factor; i>0; i--)
+    _delay_loop_2(count10ms);
 }
 
 ISR(TIMER1_COMPA_vect) {
