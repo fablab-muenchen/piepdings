@@ -17,7 +17,7 @@
 //      (D  7) PD5  9|    |12  PB0 (D  9)
 //             GND 10|    |11  PD6 (D  8)
 //                   +----+
-// PCINT11=PD0
+// PCINT3=PB3
 
 #define PORT_LED PORTB // if changed, change setup() too!
 #define LED1 PB0
@@ -331,8 +331,7 @@ bool one_round(uint8_t difficulty)
   return true;
 }
 
-/*
-ISR (PCINT2_vect) {
+ISR (PCINT0_vect) {
   // this is the Interrupt Service Routine
   //do nothing here, just wake up
 }
@@ -340,29 +339,28 @@ ISR (PCINT2_vect) {
 // attach pin 2 to interrupt
 void attachInterrupt() {
   // interrupts
-  PCMSK2 |= (1 << PCINT11); // want pin PCINT11 = PD0 = pin2
+  PCMSK0 |= (1 << PCINT3);  // want pin PCINT3 = PB3 = button 2 (green)
   GIFR   |= (1 << PCIF2);   // clear any outstanding interrupts
-  GIMSK  |= (1 << PCIE2);   // enable pin change interrupts
+  GIMSK  |= (1 << PCIE0);   // enable pin change interrupts
 }
 
 void detachInterrupt() {
-  GIMSK &= ~(1 << PCIE2);
+  GIMSK &= ~(1 << PCIE0);
 }
-*/
 
 void loop()
 {
   // go to sleep
-  /// sleep_enable(); // set safety pin to allow cpu sleep
-  /// attachInterrupt(0, intrpt, LOW); // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
-  /// set_sleep_mode(SLEEP_MODE_PWR_DOWN); // set sleep mode to have most power savings
-  /// cli(); // disable interrupts during timed sequence
+  sleep_enable(); // set safety pin to allow cpu sleep
+  attachInterrupt(); // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // set sleep mode to have most power savings
+  cli(); // disable interrupts during timed sequence
   sei(); // set Global Interrupt Enable
-  /// sleep_cpu(); // power down cpu
+  sleep_cpu(); // power down cpu
 
   // wake up here
-  /// sleep_disable(); // set safety pin to NOT allow cpu sleep
-  /// detachInterrupt(0); // detach interrupt to allow other usage of this pin
+  sleep_disable(); // set safety pin to NOT allow cpu sleep
+  detachInterrupt(); // detach interrupt to allow other usage of this pin
 
   setupTimer0();
 
