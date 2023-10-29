@@ -36,9 +36,6 @@
 #define BUZZER1_PIN PD4
 #define BUZZER2_PIN PD5
 
-#define PORT_IO PIND // if changed, change setup() too!
-#define I0_PIN 4
-
 #define TONE1 880
 #define TONE2 1760
 #define TONE3 2000
@@ -98,8 +95,8 @@ inline void delay10ms(uint8_t factor)
 
 ISR(TIMER1_COMPA_vect)
 {
-  // Toggle buzzer pins
-  PORT_PIN_BUZZER |= (1 << BUZZER1_PIN) | (1 << BUZZER2_PIN);
+  // Toggle buzzer pin
+  PORT_PIN_BUZZER |= (1 << BUZZER1_PIN) ;
 }
 
 void tone(uint16_t frequency)
@@ -181,7 +178,7 @@ uint8_t getRandom(void)
 
 ///////////////////////////
 
-void setup()
+void setupPins()
 {
   // Configure pins for output
   DDRB |= (1 << LED1) | (1 << LED2) | (1 << LED3) | (1 << LED4);
@@ -194,7 +191,7 @@ void setup()
   PORTB |= (1 << BUTTON1) | (1 << BUTTON2) | (1 << BUTTON3) | (1 << BUTTON4);
 
   setOutputPin(&PORT_BUZZER, BUZZER1_PIN, LOW);
-  setOutputPin(&PORT_BUZZER, BUZZER2_PIN, HIGH);
+  setOutputPin(&PORT_BUZZER, BUZZER2_PIN, LOW);
 
   // Check if BUTTON1 is pressed, and if so, disable sound
   if (digitalReadButton(BUTTON1) == 0)
@@ -417,7 +414,7 @@ void loop()
 
 int main()
 {
-  setup();
+  setupPins();
   while (1)
     loop();
 }
