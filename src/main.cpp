@@ -370,9 +370,6 @@ void loop()
   uint8_t difficulty = 6;
   while (one_round(difficulty))
   {
-
-    // TODO Show difficulty here
-
     difficulty++;
     
     // success sound
@@ -393,7 +390,6 @@ void loop()
   play_tone(TONE_G5, 20);
   play_tone(TONE_C5, 40);
   digitalWriteLed(LED1, LOW);
-  delay10ms(200);
 }
 
 int main()
