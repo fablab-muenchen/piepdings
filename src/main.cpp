@@ -292,7 +292,7 @@ uint8_t wait_for_button()
   // wait a max of ENTRY_TIME_LIMIT for a button press
   while (time10ms < ENTRY_TIME_LIMIT_10MS)
   {
-    uint8_t button_nr = check_button();
+    int8_t button_nr = check_button();
     if (button_nr != -1)
     { // if a button is pressed
       digitalWriteLed(nr_to_led_pin[button_nr], HIGH);
