@@ -185,7 +185,6 @@ void setupPins()
   DDRD |= (1 << BUZZER1_PIN) | (1 << BUZZER2_PIN);
   // and input
   DDRB &= ~((1 << BUTTON1) | (1 << BUTTON2) | (1 << BUTTON3) | (1 << BUTTON4));
-  DDRD &= ~(1 << I0_PIN);
 
   // Enable pull-ups for button pins
   PORTB |= (1 << BUTTON1) | (1 << BUTTON2) | (1 << BUTTON3) | (1 << BUTTON4);
