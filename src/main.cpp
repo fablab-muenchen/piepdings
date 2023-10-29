@@ -90,8 +90,12 @@ const uint16_t count10ms = F_CPU / 4 / 100; // each _delay_loop_2 loop takes 4 C
 // delay factor * 10ms,
 inline void delay10ms(uint8_t factor)
 {
+#if DEBUG
+  _delay_loop_2(1);
+#else
   for (uint8_t i = factor; i > 0; i--)
     _delay_loop_2(count10ms);
+#endif
 }
 
 ISR(TIMER1_COMPA_vect)
