@@ -78,7 +78,7 @@ void digitalWriteLed(uint8_t pin, uint8_t val)
   setOutputPin(&PORT_LED, pin, val);
 }
 
-uint8_t getInputPin(volatile uint8_t *port, uint8_t pin)
+uint8_t getInputPin(const volatile uint8_t *port, uint8_t pin)
 {
   // Return pin state
   return (*port & (1 << pin)) ? 1 : 0;
