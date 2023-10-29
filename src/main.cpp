@@ -40,6 +40,15 @@
 #define TONE2 1760
 #define TONE3 2000
 #define TONE4 3000
+#define TONE5 523 // C5
+#define TONE6 659 // E5
+#define TONE7 784 // G5
+#define TONE8 1047 // C6
+
+#define TONE_C5 5
+#define TONE_E5 6
+#define TONE_G5 7
+#define TONE_C6 8
 
 #define ENTRY_TIME_LIMIT_MS 3000
 const uint16_t ENTRY_TIME_LIMIT_10MS = ENTRY_TIME_LIMIT_MS / 10;
@@ -200,37 +209,11 @@ void setupPins()
 }
 
 const uint8_t nr_to_led_pin[] = {0, LED1, LED2, LED3, LED4};
-
-int tone_nr_to_hz(uint8_t nr)
-{
-  switch (nr)
-  {
-  case 1:
-    return TONE1;
-  case 2:
-    return TONE2;
-  case 3:
-    return TONE3;
-  case 4:
-    return TONE4;
-
-  // winning / loosing tones
-  case 10:
-    return 523; // C5
-  case 11:
-    return 659; // E5
-  case 12:
-    return 784; // G5
-  case 13:
-    return 1047; // C6
-  default:
-    return -1;
-  }
-}
+const uint16_t tone_nr_to_hz[] = {1, TONE1, TONE2, TONE3, TONE4, TONE5, TONE6, TONE7, TONE8};
 
 void play_tone(uint8_t tone_nr, uint8_t times10ms)
 {
-  int tone_hz = tone_nr_to_hz(tone_nr);
+  uint16_t tone_hz = tone_nr_to_hz[tone_nr];
   if (soundEnabled)
   {
     tone(tone_hz);
@@ -393,22 +376,26 @@ void loop()
     // TODO Show difficulty here
 
     difficulty++;
-
+    
+    // success sound
     // C5 E5 G5 C6
     digitalWriteLed(LED2, HIGH);
-    play_tone(10, 20);
-    play_tone(11, 20);
-    play_tone(12, 20);
-    play_tone(13, 20);
+    play_tone(TONE_C5, 20);
+    play_tone(TONE_E5, 20);
+    play_tone(TONE_G5, 20);
+    play_tone(TONE_C6, 20);
     digitalWriteLed(LED2, LOW);
+    delay10ms(20);
   }
 
+  // loosing sound
   // C6 G5 C5
   digitalWriteLed(LED1, HIGH);
-  play_tone(13, 20);
-  play_tone(12, 20);
-  play_tone(10, 40);
+  play_tone(TONE_C6, 20);
+  play_tone(TONE_G5, 20);
+  play_tone(TONE_C5, 40);
   digitalWriteLed(LED1, LOW);
+  delay10ms(200);
 }
 
 int main()
