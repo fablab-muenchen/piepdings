@@ -20,21 +20,21 @@
 // PCINT3=PB3
 
 #define PORT_LED PORTB // if changed, change setup() too!
-#define LED1 PB0
-#define LED2 PB2
-#define LED3 PB5
-#define LED4 PB7
+#define LED1     PB0
+#define LED2     PB2
+#define LED3     PB5
+#define LED4     PB7
 
 #define PORT_BUTTON PINB // if changed, change setup() too!
-#define BUTTON1 PB1
-#define BUTTON2 PB3
-#define BUTTON3 PB4
-#define BUTTON4 PB6
+#define BUTTON1     PB1
+#define BUTTON2     PB3
+#define BUTTON3     PB4
+#define BUTTON4     PB6
 
-#define PORT_BUZZER PORTD // if changed, change setup() too!
+#define PORT_BUZZER     PORTD // if changed, change setup() too!
 #define PORT_PIN_BUZZER PIND
-#define BUZZER1_PIN PD4
-#define BUZZER2_PIN PD5
+#define BUZZER1_PIN     PD4
+#define BUZZER2_PIN     PD5
 
 #define TONE1 880
 #define TONE2 1760
@@ -59,7 +59,7 @@ bool soundEnabled = true;
 // Helper functions
 
 #define HIGH 0x1
-#define LOW 0x0
+#define LOW  0x0
 
 void setOutputPin(volatile uint8_t *port, uint8_t pin, uint8_t val)
 {
@@ -115,11 +115,11 @@ void tone(uint16_t frequency)
   uint16_t toggle_count = (F_CPU / 8) / frequency - 1;
 
   // Set up Timer1 in CTC mode
-  TCNT1 = 0;
-  TCCR1A = 0;
-  TCCR1B = (1 << WGM12) | (1 << CS11);
-  OCR1A = toggle_count;
-  TIMSK |= (1 << OCIE1A); // enable timer compare interrupt
+  TCNT1   = 0;
+  TCCR1A  = 0;
+  TCCR1B  = (1 << WGM12) | (1 << CS11);
+  OCR1A   = toggle_count;
+  TIMSK  |= (1 << OCIE1A); // enable timer compare interrupt
 }
 
 void noTone()
@@ -147,18 +147,18 @@ ISR(TIMER0_OVF_vect)
   overflowCounter++; // Increment the overflow counter every time Timer0 overflows
 }
 
-static uint8_t counterLO = 0xAB;
-static uint8_t counterHI = 0x89;
-static uint8_t bitLO = 0;
-static uint8_t bitHI = 0;
+static uint8_t counterLO      = 0xAB;
+static uint8_t counterHI      = 0x89;
+static uint8_t bitLO          = 0;
+static uint8_t bitHI          = 0;
 static uint8_t sequenceNumber = 0;
 
 void initRandomFromClock()
 {
-  counterLO = TCNT0 ^ 0xAB;
-  counterHI = overflowCounter ^ 0x89;
-  bitLO = 0;
-  bitHI = 0;
+  counterLO      = TCNT0 ^ 0xAB;
+  counterHI      = overflowCounter ^ 0x89;
+  bitLO          = 0;
+  bitHI          = 0;
   sequenceNumber = 0;
 }
 
@@ -175,9 +175,9 @@ uint8_t getRandom(void)
   {
     // after 8 runs, there are no more unused bits
     // in case really needed, resort to combining the bits differently
-    bitLO += 2;
-    bitHI += 5;
-    sequenceNumber = 0;
+    bitLO          += 2;
+    bitHI          += 5;
+    sequenceNumber  = 0;
   }
   bitLO &= 0b0111; // modulo 8
   bitHI &= 0b0111; // modulo 8
@@ -208,7 +208,7 @@ void setupPins()
   }
 }
 
-const uint8_t nr_to_led_pin[] = {0, LED1, LED2, LED3, LED4};
+const uint8_t  nr_to_led_pin[] = {0, LED1, LED2, LED3, LED4};
 const uint16_t tone_nr_to_hz[] = {1, TONE1, TONE2, TONE3, TONE4, TONE5, TONE6, TONE7, TONE8};
 
 void play_tone(uint8_t tone_nr, uint8_t times10ms)
@@ -263,7 +263,7 @@ int8_t check_button()
 
 uint8_t wait_for_button()
 {
-  uint16_t time10ms = 0;
+  uint16_t      time10ms   = 0;
   const uint8_t delay_10ms = 1;
 
   // wait a max of ENTRY_TIME_LIMIT for a button press

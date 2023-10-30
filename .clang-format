@@ -1,0 +1,24 @@
+---
+AccessModifierOffset: -4
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments:
+  Enabled: true
+  AlignCompound: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AlignCompound: true
+AlignConsecutiveMacros:
+  Enabled: true
+  AlignCompound: true
+AlignEscapedNewlines: Left
+AlignOperands: Align
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+ColumnLimit: 0
+IndentCaseLabels: false
+IndentWidth: 2
+# InsertBraces: true
+NamespaceIndentation: All
+SortIncludes: Never
+TabWidth: 2
+UseTab: Never
