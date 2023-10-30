@@ -339,9 +339,9 @@ ISR (PCINT0_vect) {
 // attach pin 2 to interrupt
 void attachInterrupt() {
   // interrupts
-  PCMSK0 |= (1 << PCINT3);  // want pin PCINT3 = PB3 = button 2 (green)
-  GIFR   |= (1 << PCIF2);   // clear any outstanding interrupts
-  GIMSK  |= (1 << PCIE0);   // enable pin change interrupts
+  PCMSK |= (1 << PCINT3);  // want pin PCINT3 = PB3 = button 2 (green)
+  GIFR  |= (1 << PCIF2);   // clear any outstanding interrupts
+  GIMSK |= (1 << PCIE0);   // enable pin change interrupts
 }
 
 void detachInterrupt() {
