@@ -40,9 +40,9 @@
 #define TONE2 1760
 #define TONE3 2000
 #define TONE4 3000
-#define TONE5 523 // C5
-#define TONE6 659 // E5
-#define TONE7 784 // G5
+#define TONE5 523  // C5
+#define TONE6 659  // E5
+#define TONE7 784  // G5
 #define TONE8 1047 // C6
 
 #define TONE_C5 5
@@ -105,7 +105,7 @@ inline void delay10ms(uint8_t factor)
 ISR(TIMER1_COMPA_vect)
 {
   // Toggle buzzer pin
-  PORT_PIN_BUZZER |= (1 << BUZZER1_PIN) ;
+  PORT_PIN_BUZZER |= (1 << BUZZER1_PIN);
 }
 
 void tone(uint16_t frequency)
@@ -331,35 +331,38 @@ bool one_round(uint8_t difficulty)
   return true;
 }
 
-ISR (PCINT0_vect) {
+ISR(PCINT0_vect)
+{
   // this is the Interrupt Service Routine
-  //do nothing here, just wake up
+  // do nothing here, just wake up
 }
 
 // attach pin 2 to interrupt
-void attachInterrupt() {
+void attachInterrupt()
+{
   // interrupts
-  PCMSK |= (1 << PCINT3);  // want pin PCINT3 = PB3 = button 2 (green)
-  GIFR  |= (1 << PCIF2);   // clear any outstanding interrupts
-  GIMSK |= (1 << PCIE0);   // enable pin change interrupts
+  PCMSK |= (1 << PCINT3); // want pin PCINT3 = PB3 = button 2 (green)
+  GIFR  |= (1 << PCIF2);  // clear any outstanding interrupts
+  GIMSK |= (1 << PCIE0);  // enable pin change interrupts
 }
 
-void detachInterrupt() {
+void detachInterrupt()
+{
   GIMSK &= ~(1 << PCIE0);
 }
 
 void loop()
 {
   // go to sleep
-  sleep_enable(); // set safety pin to allow cpu sleep
-  attachInterrupt(); // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
+  sleep_enable();                      // set safety pin to allow cpu sleep
+  attachInterrupt();                   // attach interrupt 0 (pin 2) and run function intrpt when pin 2 gets LOW
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // set sleep mode to have most power savings
-  cli(); // disable interrupts during timed sequence
-  sei(); // set Global Interrupt Enable
-  sleep_cpu(); // power down cpu
+  cli();                               // disable interrupts during timed sequence
+  sei();                               // set Global Interrupt Enable
+  sleep_cpu();                         // power down cpu
 
   // wake up here
-  sleep_disable(); // set safety pin to NOT allow cpu sleep
+  sleep_disable();   // set safety pin to NOT allow cpu sleep
   detachInterrupt(); // detach interrupt to allow other usage of this pin
 
   setupTimer0();
@@ -371,7 +374,7 @@ void loop()
   while (one_round(difficulty))
   {
     difficulty++;
-    
+
     // success sound
     // C5 E5 G5 C6
     digitalWriteLed(LED2, HIGH);
